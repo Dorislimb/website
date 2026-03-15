@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勤務表管理システム - シンプル版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 0;
+            overflow: hidden;
+        }
+
+        h1 {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #ecf0f1;
+            padding: 28px 35px;
+            margin: 0;
+            font-size: 26px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border-bottom: 3px solid #1abc9c;
+        }
+
+        h3 {
+            color: #2c3e50;
+            margin: 15px 0 10px 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .controls {
+            margin: 0;
+            padding: 25px 35px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: #ecf0f1;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            background: linear-gradient(135deg, #3d566e 0%, #34495e 100%);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #1abc9c 0%, #48c9b0 100%);
+        }
+
+        select, input[type="text"], input[type="color"] {
+            padding: 10px 14px;
+            margin: 0 8px 8px 0;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+            background: white;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #34495e;
+            box-shadow: 0 0 0 3px rgba(52, 73, 94, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 20px;
+            font-size: 12px;
+            table-layout: fixed;
+            border: 3px solid #2c3e50;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        /* 行ごとに背景色を交互に（ストライプ） - スタッフごとに色分け */
+        tbody tr:nth-child(odd) td {
+            background-color: #ffffff;
+        }
+        
+        tbody tr:nth-child(even) td {
+            background-color: #f0f4f8;
+        }
+        
+        /* 5行ごとに濃い線 */
+        tbody tr:nth-child(5n) td {
+            border-bottom: 3px solid #7f8c8d !important;
+        }
+
+        th, td {
+            border: 1px solid #bdc3c7;
+            padding: 8px;
+            text-align: center;
+            vertical-align: top;
+            min-width: 150px;
+            width: 150px;
+            position: relative;
+        }
+        
+        /* 5列ごとに濃い線（5日ごとに区切り） */
+        th:nth-child(5n+1), td:nth-child(5n+1) {
+            border-left: 3px solid #7f8c8d !important;
+        }
+
+        th {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: #ecf0f1;
+            padding: 15px 10px;
+            font-weight: 600;
+            font-size: 16px;
+            border: 2px solid #2c3e50;
+            line-height: 1.5;
+        }
+
+        th:first-child, td:first-child {
+            width: 220px !important;
+            min-width: 220px !important;
+            max-width: 220px !important;
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 10;
+            border-right: 4px solid #2c3e50 !important;
+            font-weight: 700;
+            font-size: 13px;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: visible;
+            padding: 8px;
+            vertical-align: top;
+        }
+        
+        /* 偶数行の最初の列も背景色を合わせる */
+        tbody tr:nth-child(even) td:first-child {
+            background-color: #d6e4f0;
+        }
+        
+        /* 奇数行のスタッフ名セルは明るい色 */
+        tbody tr:nth-child(odd) td:first-child {
+            background-color: #e8f4f8;
+        }
+        
+        /* 5行ごとのスタッフ名セルも濃い下線 */
+        tbody tr:nth-child(5n) td:first-child {
+            border-bottom: 3px solid #7f8c8d !important;
+        }
+
+        th:first-child {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            z-index: 11;
+            border-right: 4px solid #2c3e50 !important;
+        }
+        
+        /* ホバー効果 - 行全体をハイライト */
+        tbody tr:hover td {
+            background-color: #e3f2fd !important;
+            transition: background-color 0.2s;
+        }
+        
+        /* ホバー効果 - 列全体をハイライト */
+        td:hover,
+        th:hover {
+            background-color: #fff3cd !important;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        th:first-child:hover {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%) !important;
+        }
+
+        td textarea {
+            width: 100%;
+            height: 35px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            padding: 5px;
+            resize: vertical;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        td select {
+            width: 100%;
+            font-size: 10px;
+            padding: 6px 4px;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .shift-display {
+            width: 100%;
+            padding: 15px 5px;
+            font-size: 22px;
+            font-weight: 700;
+            text-align: center;
+            white-space: pre-line;
+            line-height: 1.5;
+            border-radius: 4px;
+            margin-top: 4px;
+            min-height: 55px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            letter-spacing: 0.5px;
+        }
+
+        .sunday { color: #c0392b; font-weight: 600; }
+        .saturday { color: #2980b9; font-weight: 600; }
+
+        #calendarContainer {
+            padding: 25px 35px;
+            padding-bottom: 50px;
+            overflow-x: visible;
+            overflow-y: visible;
+            position: relative;
+        }
+        
+        /* テーブルコンテナ - 固定高さでスクロール可能 */
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        thead th {
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%) !important;
+        }
+        
+        /* 職員名列（最初の列）のヘッダーは最優先 */
+        thead th:first-child {
+            z-index: 150;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%) !important;
+        }
+        
+        /* カスタム横スクロールバー - 上部に固定 */
+        #customScrollbar {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 200 !important;
+            background: linear-gradient(180deg, #e1e4e8 0%, #d1d5da 100%) !important;
+        }
+        
+        /* テーブルコンテナ - 固定高さでスクロール可能 */
+        #tableContainer {
+            overflow-x: scroll;
+            overflow-y: scroll;
+            max-height: calc(100vh - 50px);
+            position: relative;
+        }
+        
+        #tableContainer::-webkit-scrollbar {
+            width: 12px;
+            height: 16px;
+        }
+        
+        #tableContainer::-webkit-scrollbar-track {
+            background: #e1e4e8;
+            border-radius: 6px;
+        }
+        
+        #tableContainer::-webkit-scrollbar-thumb {
+            background: #34495e;
+            border-radius: 6px;
+            border: 2px solid #e1e4e8;
+        }
+        
+        #tableContainer::-webkit-scrollbar-thumb:hover {
+            background: #2c3e50;
+        }
+        
+        /* テーブルを囲むラッパーを追加してスクロールバーを固定表示 */
+        .table-wrapper {
+            overflow-x: auto;
+            overflow-y: visible;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            background: white;
+            padding-bottom: 10px;
+        }
+        
+        .table-scroll-wrapper::-webkit-scrollbar {
+            height: 18px !important;
+            -webkit-appearance: none;
+            display: block !important;
+        }
+        
+        .table-scroll-wrapper::-webkit-scrollbar-track {
+            background: #e1e4e8;
+            border-radius: 8px;
+            display: block !important;
+        }
+        
+        .table-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: #34495e;
+            border-radius: 8px;
+            border: 3px solid #e1e4e8;
+            min-width: 50px;
+            display: block !important;
+        }
+        
+        .table-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #2c3e50;
+        }
+        
+        .table-scroll-wrapper {
+            scrollbar-width: auto;
+            scrollbar-color: #34495e #e1e4e8;
+            overflow-x: scroll !important; /* 常に表示 */
+        }
+
+        #calendarContainer h2 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+            font-size: 20px;
+            font-weight: 600;
+            padding: 10px 0;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        #calendarContainer table {
+            min-width: 100%;
+            width: max-content;
+        }
+
+        .staff-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+            color: #ecf0f1;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            margin: 0 4px 8px 0;
+        }
+
+        .staff-tag.middle {
+            background: linear-gradient(135deg, #2980b9 0%, #3498db 100%);
+            box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+        }
+
+        .staff-tag.bottom {
+            background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+            box-shadow: 0 2px 6px rgba(26, 188, 156, 0.3);
+        }
+
+        .staff-tag button {
+            background: rgba(255,255,255,0.25);
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            margin: 0;
+            border-radius: 50%;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+        }
+
+        .staff-tag button:hover {
+            background: rgba(255,255,255,0.4);
+            transform: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(44, 62, 80, 0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+        /* 印刷用スタイル */
+        @media print {
+            /* 不要な要素を非表示 */
+            h1, .controls {
+                display: none !important;
+            }
+            
+            /* ページ設定 */
+            @page {
+                size: A4 landscape;
+                margin: 3mm;
+            }
+            
+            body {
+                margin: 0;
+                padding: 0;
+                zoom: 0.50;
+                overflow: visible;
+            }
+            
+            * {
+                page-break-inside: avoid !important;
+            }
+            
+            .container {
+                page-break-inside: avoid !important;
+                page-break-before: avoid !important;
+                page-break-after: avoid !important;
+            }
+            
+            /* テーブルコンテナ */
+            #tableContainer {
+                overflow: visible !important;
+                max-height: none !important;
+                border: none !important;
+                page-break-inside: avoid !important;
+            }
+            
+            #calendarContainer {
+                page-break-inside: avoid !important;
+            }
+            
+            /* テーブル基本設定 */
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                page-break-inside: avoid;
+                margin-bottom: 3px;
+            }
+            
+            /* 2番目以降のテーブルのヘッダーを非表示 */
+            table:nth-of-type(2) thead,
+            table:nth-of-type(3) thead {
+                display: none !important;
+            }
+            
+            /* 行事行は非表示、集計行は表示 */
+            .event-row {
+                display: none !important;
+            }
+            
+            /* 集計行を表示 */
+            .summary-row {
+                display: table-row !important;
+                background: #e9ecef !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .summary-row td {
+                font-size: 9px !important;
+                font-weight: 600 !important;
+                padding: 2px !important;
+                line-height: 1.2 !important;
+            }
+            
+            /* セル基本 */
+            th, td {
+                border: 1px solid #666;
+                padding: 2px;
+                font-size: 10px;
+                vertical-align: top;
+            }
+            
+            /* ヘッダー */
+            th {
+                background: #34495e !important;
+                color: white !important;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 3px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            /* 職員名列 */
+            th:first-child,
+            td:first-child {
+                width: 80px;
+                font-size: 11px;
+                font-weight: 700;
+                text-align: left;
+                background: white !important;
+                padding: 3px;
+            }
+            
+            /* 職員名列内 */
+            td:first-child strong {
+                font-size: 11px;
+                font-weight: 700;
+            }
+            
+            /* 職員名列の備考とボタンを非表示 */
+            td:first-child textarea,
+            td:first-child button {
+                display: none;
+            }
+            
+            /* 選択ボックスを非表示 */
+            select {
+                display: none;
+            }
+            
+            /* 日付セルの備考欄 */
+            td:not(:first-child) textarea {
+                font-size: 8px;
+                height: 20px;
+                padding: 2px;
+                border: 1px solid #ccc;
+                margin-bottom: 2px;
+            }
+            
+            /* シフト表示 */
+            .shift-display {
+                font-size: 10px;
+                font-weight: 700;
+                text-align: center;
+                line-height: 1.2;
+                padding: 2px;
+                min-height: 24px;
+            }
+            
+            /* 希望マーク */
+            td > div:first-child span {
+                font-size: 9px;
+                width: 14px;
+                height: 14px;
+                line-height: 12px;
+                border-width: 1.5px;
+            }
+            
+            /* 日付セル内のボタンを非表示 */
+            td:not(:first-child) button {
+                display: none;
+            }
+            
+            /* 背景色を印刷 */
+            td {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            /* 行事欄を縦書きで表示 */
+            .event-row td {
+                writing-mode: vertical-rl !important;
+                text-orientation: upright !important;
+            }
+            
+            .event-row textarea {
+                writing-mode: vertical-rl !important;
+                text-orientation: upright !important;
+                font-size: 12px !important;
+                font-weight: 600 !important;
+            }
+            
+            /* 5行ごとの太線 */
+            tbody tr:nth-child(5n) td {
+                border-bottom: 2px solid #333;
+            }
+            
+            /* 5列ごとの太線 */
+            th:nth-child(5n+1),
+            td:nth-child(5n+1) {
+                border-left: 2px solid #333;
+            }
+            
+            /* タイトル */
+            #calendarContainer h2 {
+                font-size: 12px;
+                margin: 0 0 3px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 勤務表管理システム</h1>
+        
+        <div class="controls">
+            <label>年:</label>
+            <select id="yearSelect"></select>
+            
+            <label>月:</label>
+            <select id="monthSelect"></select>
+            
+            <button onclick="generateCalendar()">カレンダー生成</button>
+            <button onclick="openShiftTypeModal()">勤務形態設定</button>
+            <button onclick="openPlacementCheckModal()">配置チェック</button>
+            <button onclick="openWorkRulesModal()">連勤ルール設定</button>
+            <button onclick="checkAllViolations()">⚠️ 連勤・配置確認</button>
+            <button onclick="openAIModal()">🤖 AIシフト生成</button>
+            <button onclick="exportToExcel()">Excel出力</button>
+            <button onclick="exportData()">💾 データ保存</button>
+            <button onclick="document.getElementById('importFile').click()">📂 データ読込</button>
+            <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+            <button onclick="exportAsPDF()">印刷</button>
+            <button onclick="clearAllData()" style="background:#e74c3c; color:white;">🗑️ 全データクリア</button>
+            
+            <div style="display:inline-block; margin-left:20px; padding:5px 10px; background:#f0f4f8; border-radius:6px;">
+                <label style="font-weight:600; margin-right:8px;">表示サイズ:</label>
+                <button onclick="adjustTableZoom(-10)" style="padding:6px 12px;">縮小 −</button>
+                <span id="zoomDisplay" style="display:inline-block; width:60px; text-align:center; font-weight:600;">100%</span>
+                <button onclick="adjustTableZoom(10)" style="padding:6px 12px;">拡大 +</button>
+                <button onclick="resetTableZoom()" style="padding:6px 12px; margin-left:8px;">リセット</button>
+            </div>
+            
+            <br><br>
+            
+            <h3>上段グループ</h3>
+            <label>スタッフ名:</label>
+            <input type="text" id="staffInputTop" placeholder="名前を入力">
+            <button onclick="addStaff('top')">追加</button>
+            <div id="staffListTop" style="margin-top:10px;"></div>
+            
+            <br>
+            
+            <h3>中段グループ</h3>
+            <label>スタッフ名:</label>
+            <input type="text" id="staffInputMiddle" placeholder="名前を入力">
+            <button onclick="addStaff('middle')">追加</button>
+            <div id="staffListMiddle" style="margin-top:10px;"></div>
+            
+            <br>
+            
+            <h3>下段グループ（最大3名）</h3>
+            <label>スタッフ名:</label>
+            <input type="text" id="staffInputBottom" placeholder="名前を入力">
+            <button onclick="addStaff('bottom')">追加</button>
+            <div id="staffListBottom" style="margin-top:10px;"></div>
+        </div>
+        
+        <div id="calendarContainer"></div>
+    </div>
+
+    <!-- 勤務形態設定モーダル -->
+    <div id="shiftTypeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:10px; max-width:600px; width:90%; max-height:80vh; overflow-y:auto;">
+            <h3>勤務形態設定</h3>
+            <div id="shiftTypeList" style="margin:20px 0; max-height:400px; overflow-y:auto;"></div>
+            <div style="margin-top:20px;">
+                <input type="text" id="newShiftTypeName" placeholder="勤務形態名（改行可：Shift+Enter）" style="width:200px; padding:8px;">
+                <input type="color" id="newShiftTypeColor" value="#fff3cd" style="width:60px; padding:8px;">
+                <button onclick="addShiftType()">追加</button>
+            </div>
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closeShiftTypeModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置チェックモーダル -->
+    <div id="placementCheckModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; overflow-y:auto;">
+        <div style="background:white; padding:30px; border-radius:10px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; margin:20px auto;">
+            <h3>配置チェック設定</h3>
+            <p style="color:#666; font-size:14px;">0人（未配置）または2人以上（重複）で警告します</p>
+            <div id="placementCheckList" style="margin:20px 0; max-height:400px; overflow-y:auto; border:1px solid #e1e4e8; border-radius:6px; padding:10px;"></div>
+            <div style="margin-top:20px;">
+                <select id="newCheckShiftType" style="width:200px; padding:8px;">
+                    <option value="">勤務形態を選択</option>
+                </select>
+                <button onclick="addPlacementCheck()">追加</button>
+            </div>
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closePlacementCheckModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 連勤ルール設定モーダル -->
+    <div id="workRulesModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; overflow-y:auto;">
+        <div style="background:white; padding:30px; border-radius:10px; max-width:600px; width:90%; max-height:80vh; overflow-y:auto; margin:20px auto;">
+            <h3>連勤ルール設定</h3>
+            <p style="color:#666; font-size:14px;">各職員の最大連続勤務日数を設定します（設定日数を超えると赤枠で警告）</p>
+            <div id="workRulesList" style="margin:20px 0; max-height:400px; overflow-y:auto;"></div>
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closeWorkRulesModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AIシフト生成モーダル -->
+    <div id="aiModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:10px; max-width:700px; width:90%; max-height:80vh; overflow-y:auto;">
+            <h3>🤖 AIシフト生成アシスタント</h3>
+            <p style="color:#666; font-size:14px; margin-bottom:15px;">条件を入力して、Claude.aiで使えるプロンプトを生成します</p>
+            
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:600; display:block; margin-bottom:8px;">シフト条件を入力:</label>
+                <textarea id="aiPrompt" placeholder="例：&#10;上村さんは水曜日は日Nのみ出勤。木曜日は休。&#10;第2金曜日と第4金曜日は備考欄にPM休と記載。&#10;渡邊さんは日Nを優先。月曜は早と早☆が不可。" style="width:100%; height:120px; padding:10px; border:2px solid #e1e4e8; border-radius:8px; font-size:14px; font-family:inherit;"></textarea>
+            </div>
+            
+            <div style="margin-bottom:20px; padding:15px; background:#f8f9fc; border-radius:8px; border-left:4px solid #667eea;">
+                <p style="font-size:13px; color:#333; margin-bottom:8px;"><strong>📋 使い方:</strong></p>
+                <ol style="font-size:13px; color:#666; margin-left:20px; line-height:1.6;">
+                    <li>上記に条件を入力</li>
+                    <li>「プロンプトをコピー」をクリック</li>
+                    <li><a href="https://claude.ai" target="_blank" style="color:#667eea;">Claude.ai</a> を開いてペースト</li>
+                    <li>生成されたJSONをコピー</li>
+                    <li>「結果を貼り付け」をクリックしてペースト</li>
+                    <li>✨ 修正が必要な場合は「追加条件で修正」から再生成</li>
+                </ol>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <button onclick="copyAIPrompt()" style="width:100%; padding:12px; margin-bottom:8px;">📋 プロンプトをコピー</button>
+                <button onclick="openPasteModal()" style="width:100%; padding:12px; background:linear-gradient(135deg, #28a745 0%, #20c997 100%);">📥 結果を貼り付け</button>
+            </div>
+            
+            <!-- 追加修正セクション -->
+            <div id="additionalModifySection" style="display:none; margin-top:20px; padding:15px; background:#fff3cd; border-radius:8px; border-left:4px solid #ffc107;">
+                <p style="font-size:13px; color:#333; margin-bottom:8px;"><strong>✏️ 追加条件で修正:</strong></p>
+                <textarea id="additionalPrompt" placeholder="例：&#10;増田さんの2/20を休みに変更&#10;上村さんの第2週は全て休みに" style="width:100%; height:80px; padding:10px; border:2px solid #e1e4e8; border-radius:8px; font-size:14px; font-family:inherit; margin-bottom:10px;"></textarea>
+                <button onclick="copyModificationPrompt()" style="width:100%; padding:10px; background:linear-gradient(135deg, #ff9800 0%, #ff5722 100%); color:white;">🔄 修正プロンプトをコピー</button>
+            </div>
+            
+            <div id="aiStatus" style="margin:15px 0; padding:10px; border-radius:6px; display:none;"></div>
+            
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closeAIModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JSON貼り付けモーダル -->
+    <div id="pasteModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1001; align-items:center; justify-content:center;">
+        <div style="background:white; padding:30px; border-radius:10px; max-width:600px; width:90%;">
+            <h3>📥 Claude.aiからの結果を貼り付け</h3>
+            <p style="color:#666; font-size:14px; margin-bottom:15px;">Claude.aiが生成したJSON形式のデータを貼り付けてください</p>
+            <textarea id="pasteArea" placeholder='{"shifts": {"2026-2-16-田中": "day", ...}, "notes": {...}}' style="width:100%; height:200px; padding:10px; border:2px solid #e1e4e8; border-radius:8px; font-size:12px; font-family:monospace;"></textarea>
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="applyPastedData()" style="background:linear-gradient(135deg, #28a745 0%, #20c997 100%); color:white; margin-right:8px;">適用</button>
+                <button onclick="closePasteModal()">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // グローバル変数
+        let staffListTop = [];
+        let staffListMiddle = ['上村', '渡邊', '金丸', '高橋 英子', '増田', '井上浩地'];
+        let staffListBottom = [];
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth() + 1;
+        let dayCount = 30; // デフォルト値
+        let tableZoom = 100; // 表示サイズ（%）
+        let scheduleData = {};
+        let notesData = {};
+        let eventData = {};
+        let requestedOffData = {}; // 希望休データ
+        let staffNotesData = {}; // スタッフ備考データ
+        let shiftTypes = [
+            { id: '日N', name: '日N', color: '#fff3cd' },
+            { id: '入', name: '入', color: '#cfe2ff' },
+            { id: '明', name: '明', color: '#d4edda' },
+            { id: '2入', name: '2入', color: '#d1ecf1' },
+            { id: '2明', name: '2明', color: '#e2e3e5' },
+            { id: '早', name: '早', color: '#fff4e6' },
+            { id: '早☆', name: '早☆', color: '#ffe4b5' },
+            { id: '遅', name: '遅', color: '#e7f3ff' },
+            { id: '遅③', name: '遅③', color: '#e0f2fe' },
+            { id: '1階夜勤', name: '1階夜勤', color: '#f0f0f0' },
+            { id: '休', name: '休', color: '#f8d7da' }
+        ];
+        let staffWorkRules = [];
+        let duplicateCheckShifts = [];
+
+        // 初期化
+        function init() {
+            console.log('システム初期化開始');
+            
+            // ローカルストレージから読込
+            loadFromLocalStorage();
+            
+            // ズーム設定を読み込み
+            const savedZoom = localStorage.getItem('tableZoom');
+            if (savedZoom) {
+                tableZoom = parseInt(savedZoom);
+            }
+            
+            const yearSelect = document.getElementById('yearSelect');
+            for (let year = currentYear - 2; year <= currentYear + 5; year++) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year + '年';
+                if (year === currentYear) option.selected = true;
+                yearSelect.appendChild(option);
+            }
+
+            const monthSelect = document.getElementById('monthSelect');
+            for (let month = 1; month <= 12; month++) {
+                const option = document.createElement('option');
+                option.value = month;
+                option.textContent = month + '月';
+                if (month === currentMonth) option.selected = true;
+                monthSelect.appendChild(option);
+            }
+
+            updateStaffList();
+            generateCalendar();
+            
+            console.log('システム初期化完了');
+        }
+
+        // スタッフ追加
+        function addStaff(group) {
+            let inputId, staffList;
+            if (group === 'top') {
+                inputId = 'staffInputTop';
+                staffList = staffListTop;
+            } else if (group === 'middle') {
+                inputId = 'staffInputMiddle';
+                staffList = staffListMiddle;
+            } else {
+                inputId = 'staffInputBottom';
+                staffList = staffListBottom;
+            }
+            
+            const input = document.getElementById(inputId);
+            const name = input.value.trim();
+            
+            if (!name) {
+                alert('名前を入力してください');
+                return;
+            }
+            
+            if (group === 'top') {
+                if (!staffListTop.includes(name)) {
+                    staffListTop.push(name);
+                } else {
+                    alert('既に登録されています');
+                    return;
+                }
+            } else if (group === 'middle') {
+                if (!staffListMiddle.includes(name)) {
+                    staffListMiddle.push(name);
+                } else {
+                    alert('既に登録されています');
+                    return;
+                }
+            } else {
+                if (staffListBottom.length >= 3) {
+                    alert('下段グループは最大3名までです');
+                    return;
+                }
+                if (!staffListBottom.includes(name)) {
+                    staffListBottom.push(name);
+                } else {
+                    alert('既に登録されています');
+                    return;
+                }
+            }
+            
+            input.value = '';
+            updateStaffList();
+            generateCalendar();
+            saveToLocalStorage();
+        }
+
+        // スタッフ削除
+        function removeStaff(name, group) {
+            if (group === 'top') {
+                staffListTop = staffListTop.filter(s => s !== name);
+            } else if (group === 'middle') {
+                staffListMiddle = staffListMiddle.filter(s => s !== name);
+            } else {
+                staffListBottom = staffListBottom.filter(s => s !== name);
+            }
+            updateStaffList();
+            generateCalendar();
+            saveToLocalStorage();
+        }
+
+        // スタッフリスト更新
+        function updateStaffList() {
+            const containerTop = document.getElementById('staffListTop');
+            const containerMiddle = document.getElementById('staffListMiddle');
+            const containerBottom = document.getElementById('staffListBottom');
+            
+            containerTop.innerHTML = '';
+            staffListTop.forEach((name, index) => {
+                const span = document.createElement('span');
+                span.className = 'staff-tag';
+                span.innerHTML = name + 
+                    (index > 0 ? ' <button onclick="moveStaff(\'top\', ' + index + ', -1)" style="font-size:12px; padding:2px 5px; margin:0 2px;">↑</button>' : '') +
+                    (index < staffListTop.length - 1 ? ' <button onclick="moveStaff(\'top\', ' + index + ', 1)" style="font-size:12px; padding:2px 5px; margin:0 2px;">↓</button>' : '') +
+                    ' <button onclick="removeStaff(\'' + name + '\', \'top\')">×</button>';
+                containerTop.appendChild(span);
+            });
+            
+            containerMiddle.innerHTML = '';
+            staffListMiddle.forEach((name, index) => {
+                const span = document.createElement('span');
+                span.className = 'staff-tag middle';
+                span.innerHTML = name + 
+                    (index > 0 ? ' <button onclick="moveStaff(\'middle\', ' + index + ', -1)" style="font-size:12px; padding:2px 5px; margin:0 2px;">↑</button>' : '') +
+                    (index < staffListMiddle.length - 1 ? ' <button onclick="moveStaff(\'middle\', ' + index + ', 1)" style="font-size:12px; padding:2px 5px; margin:0 2px;">↓</button>' : '') +
+                    ' <button onclick="removeStaff(\'' + name + '\', \'middle\')">×</button>';
+                containerMiddle.appendChild(span);
+            });
+            
+            containerBottom.innerHTML = '';
+            staffListBottom.forEach((name, index) => {
+                const span = document.createElement('span');
+                span.className = 'staff-tag bottom';
+                span.innerHTML = name + 
+                    (index > 0 ? ' <button onclick="moveStaff(\'bottom\', ' + index + ', -1)" style="font-size:12px; padding:2px 5px; margin:0 2px;">↑</button>' : '') +
+                    (index < staffListBottom.length - 1 ? ' <button onclick="moveStaff(\'bottom\', ' + index + ', 1)" style="font-size:12px; padding:2px 5px; margin:0 2px;">↓</button>' : '') +
+                    ' <button onclick="removeStaff(\'' + name + '\', \'bottom\')">×</button>';
+                containerBottom.appendChild(span);
+            });
+        }
+
+        // スタッフを上下に移動
+        function moveStaff(group, index, direction) {
+            let list;
+            if (group === 'top') {
+                list = staffListTop;
+            } else if (group === 'middle') {
+                list = staffListMiddle;
+            } else {
+                list = staffListBottom;
+            }
+            
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= list.length) return;
+            
+            // 配列内で入れ替え
+            const temp = list[index];
+            list[index] = list[newIndex];
+            list[newIndex] = temp;
+            
+            // 対象のリストを更新
+            if (group === 'top') {
+                staffListTop = list;
+            } else if (group === 'middle') {
+                staffListMiddle = list;
+            } else {
+                staffListBottom = list;
+            }
+            
+            updateStaffList();
+            generateCalendar();
+            saveToLocalStorage();
+        }
+
+        // カレンダー生成
+        function generateCalendar() {
+            const year = parseInt(document.getElementById('yearSelect').value);
+            const month = parseInt(document.getElementById('monthSelect').value);
+            currentYear = year;
+            currentMonth = month;
+
+            const nextMonth = month === 12 ? 1 : month + 1;
+            const nextYear = month === 12 ? year + 1 : year;
+            
+            // 当月16日から翌月15日までの日数を計算
+            const startDate = new Date(year, month - 1, 16);
+            const endDate = new Date(nextYear, nextMonth - 1, 15);
+            dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1; // グローバル変数を更新
+
+            let html = '<h2>' + year + '年' + month + '月16日 〜 ' + nextYear + '年' + nextMonth + '月15日 勤務表（' + dayCount + '日間）</h2>';
+            
+            html += '<div id="tableContainer" class="table-scroll-wrapper" style="overflow:scroll; max-height:calc(100vh - 50px); border:2px solid #dee2e6; border-radius:8px; margin-bottom:20px;">';
+            
+            // 上段テーブル
+            if (staffListTop.length > 0) {
+                html += generateTable(staffListTop, year, month, dayCount, false);
+            }
+            
+            // 中段テーブル
+            if (staffListMiddle.length > 0) {
+                html += '<div style="margin-top:15px;"></div>';
+                html += generateTable(staffListMiddle, year, month, dayCount, false);
+            }
+            
+            // 下段テーブル
+            if (staffListBottom.length > 0) {
+                html += '<div style="margin-top:15px;"></div>';
+                html += generateTable(staffListBottom, year, month, dayCount, true);
+            }
+            
+            html += '</div>'; // tableContainer閉じる
+
+            // スクロール位置を保存
+            const tableContainer = document.getElementById('tableContainer');
+            const scrollTop = tableContainer ? tableContainer.scrollTop : 0;
+            const scrollLeft = tableContainer ? tableContainer.scrollLeft : 0;
+
+            document.getElementById('calendarContainer').innerHTML = html;
+            
+            // スクロール位置を復元
+            const newTableContainer = document.getElementById('tableContainer');
+            if (newTableContainer) {
+                newTableContainer.scrollTop = scrollTop;
+                newTableContainer.scrollLeft = scrollLeft;
+            }
+            
+            // ズームを適用
+            applyTableZoom();
+        }
+        
+        // 日付行を生成
+        function generateDateRow(year, month, dayCount) {
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            let html = '<table><thead><tr>';
+            html += '<th style="background:#34495e;">日付</th>';
+            
+            for (let i = 0; i < dayCount; i++) {
+                const currentDate = new Date(year, month - 1, 16 + i);
+                const day = currentDate.getDate();
+                const dayOfWeek = currentDate.getDay();
+                html += '<th>' + day + '<br>' + dayNames[dayOfWeek] + '</th>';
+            }
+            html += '</tr></thead></table>';
+            return html;
+        }
+
+        // テーブル生成（上段/下段共通）
+        function generateTable(staffList, year, month, dayCount, isBottom) {
+            const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+            
+            // 連勤違反情報を事前計算
+            const consecutiveViolations = {}; // key: staff-date, value: true/false
+            
+            staffList.forEach(staff => {
+                const staffRule = staffWorkRules.find(r => r.staff === staff);
+                const maxConsecutiveDays = staffRule ? staffRule.maxConsecutiveDays : 4;
+                
+                let consecutiveDays = 0;
+                let violationStart = -1; // 違反開始日のインデックス
+                
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(year, month - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const shift = scheduleData[key] || '';
+                    
+                    const shiftType = shiftTypes.find(t => t.id === shift);
+                    const shiftName = shiftType ? shiftType.name.replace(/\n/g, '').trim() : '';
+                    
+                    // 休み・明け・2明け以外をカウント
+                    if (shift && shift !== '' && shiftName !== '休' && shiftName !== '明' && shiftName !== '2明') {
+                        consecutiveDays++;
+                        
+                        // 違反開始
+                        if (consecutiveDays > maxConsecutiveDays && violationStart === -1) {
+                            violationStart = i - consecutiveDays + 1; // 連勤開始位置
+                        }
+                        
+                        // 違反期間中の全ての日をマーク
+                        if (consecutiveDays > maxConsecutiveDays) {
+                            for (let j = violationStart; j <= i; j++) {
+                                const vDate = new Date(year, month - 1, 16 + j);
+                                const vDay = vDate.getDate();
+                                const vMonth = vDate.getMonth() + 1;
+                                const vYear = vDate.getFullYear();
+                                const vKey = vYear + '-' + vMonth + '-' + vDay + '-' + staff;
+                                consecutiveViolations[vKey] = consecutiveDays;
+                            }
+                        }
+                    } else {
+                        consecutiveDays = 0;
+                        violationStart = -1;
+                    }
+                }
+            });
+            
+            let html = '<table><thead><tr>';
+            
+            // すべてのテーブルにヘッダーを表示（日付の縦を揃えるため）
+            html += '<th>スタッフ</th>';
+            for (let i = 0; i < dayCount; i++) {
+                const currentDate = new Date(year, month - 1, 16 + i);
+                const day = currentDate.getDate();
+                const dayOfWeek = currentDate.getDay();
+                html += '<th>' + day + '<br>' + dayNames[dayOfWeek] + '</th>';
+            }
+            html += '</tr></thead>';
+            
+            html += '<tbody>';
+
+            // 各スタッフの行
+            staffList.forEach(staff => {
+                html += '<tr>';
+                const staffNoteKey = 'staff-note-' + staff;
+                const staffNote = staffNotesData[staffNoteKey] || '';
+                
+                // このスタッフの勤務を集計（表示中の月のみ）
+                let nightCount = 0; // 入+2入の合計
+                let offCount = 0;   // 休の数
+                
+                // 表示中の期間（当月16日から翌月15日）のデータだけをカウント
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(year, month - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const shiftId = scheduleData[key];
+                    
+                    if (shiftId) {
+                        // shiftTypesからIDに対応する名前を取得
+                        const shiftType = shiftTypes.find(t => t.id === shiftId);
+                        if (shiftType) {
+                            // 改行、スペース、全角スペースをすべて除去
+                            const shiftName = shiftType.name.replace(/\n/g, '').replace(/\s/g, '').replace(/　/g, '');
+                            
+                            // 厳密に比較（入、2入、２入、休）
+                            if (shiftName === '入' || shiftName === '2入' || shiftName === '２入') {
+                                nightCount++;
+                            }
+                            if (shiftName === '休') {
+                                offCount++;
+                            }
+                        }
+                    }
+                }
+                
+                html += '<td style="vertical-align:top; padding:8px; position:sticky; left:0; background:white; z-index:5;">';
+                
+                // 名前を大きく表示
+                html += '<div style="font-size:20px; font-weight:700; margin-bottom:10px;">' + staff + '</div>';
+                
+                // 備考欄
+                html += '<textarea placeholder="" onchange="updateStaffNote(\'' + staffNoteKey + '\', this.value)" style="width:100%; height:35px; font-size:9px; padding:3px; border:1px solid #e1e4e8; border-radius:4px; resize:vertical; font-family:inherit; margin-bottom:8px;">' + staffNote + '</textarea>';
+                
+                // コピーボタンと集計を横並び
+                html += '<div style="display:flex; align-items:center; gap:8px;">';
+                html += '<button onclick="copyStaffRow(\'' + staff + '\', ' + year + ', ' + month + ', event)" style="font-size:9px; padding:2px 5px; cursor:pointer; flex-shrink:0;">📋</button>';
+                html += '<div style="font-size:14px; font-weight:600; background:#e8f5e9; padding:4px 10px; border-radius:12px; white-space:nowrap;">';
+                html += '<span style="color:#1976d2;">夜' + nightCount + '</span> ';
+                html += '<span style="color:#d32f2f;">休' + offCount + '</span>';
+                html += '</div>';
+                html += '</div>';
+                
+                html += '</td>';
+                
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(year, month - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    const dayOfWeek = currentDate.getDay();
+                    
+                    const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const currentShift = scheduleData[key] || '';
+                    const currentNote = notesData[key] || '';
+                    
+                    // ルール違反チェック
+                    let hasViolation = false;
+                    let violationMessage = '';
+                    
+                    if (i > 0) {
+                        const prevDate = new Date(year, month - 1, 16 + i - 1);
+                        const prevDay = prevDate.getDate();
+                        const prevMonth = prevDate.getMonth() + 1;
+                        const prevYear = prevDate.getFullYear();
+                        const prevKey = prevYear + '-' + prevMonth + '-' + prevDay + '-' + staff;
+                        const prevShift = scheduleData[prevKey] || '';
+                        
+                        const prevShiftType = shiftTypes.find(t => t.id === prevShift);
+                        const currShiftType = shiftTypes.find(t => t.id === currentShift);
+                        
+                        const prevName = prevShiftType ? prevShiftType.name.replace(/\n/g, '').trim() : '';
+                        const currName = currShiftType ? currShiftType.name.replace(/\n/g, '').trim() : '';
+                        
+                        // 明・2明の次は休でなければならない
+                        if ((prevName === '明' || prevName === '2明') && currName !== '休' && currName !== '') {
+                            hasViolation = true;
+                            violationMessage = prevName + 'の翌日は休が必要';
+                        }
+                        
+                        // 入の次は明でなければならない
+                        if (prevName === '入' && currName !== '明' && currName !== '') {
+                            hasViolation = true;
+                            violationMessage = '入の翌日は明が必要';
+                        }
+                        
+                        // 2入の次は2明でなければならない
+                        if (prevName === '2入' && currName !== '2明' && currName !== '') {
+                            hasViolation = true;
+                            violationMessage = '2入の翌日は2明が必要';
+                        }
+                        
+                        // 1階夜勤の次は休でなければならない
+                        if (prevName === '1階夜勤' && currName !== '休' && currName !== '') {
+                            hasViolation = true;
+                            violationMessage = '1階夜勤の翌日は休が必要';
+                        }
+                    }
+                    
+                    // 連勤チェック（事前計算済みの情報を使用）
+                    const violationKey = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const consecutiveDaysInViolation = consecutiveViolations[violationKey];
+                    
+                    if (consecutiveDaysInViolation) {
+                        const staffRule = staffWorkRules.find(r => r.staff === staff);
+                        const maxConsecutiveDays = staffRule ? staffRule.maxConsecutiveDays : 4;
+                        hasViolation = true;
+                        violationMessage = violationMessage ? violationMessage + ' / ' : '';
+                        violationMessage += consecutiveDaysInViolation + '連勤（上限' + maxConsecutiveDays + '日）';
+                    }
+                    
+                    let cellClass = '';
+                    if (dayOfWeek === 0) cellClass = 'sunday';
+                    else if (dayOfWeek === 6) cellClass = 'saturday';
+                    
+                    const shiftType = shiftTypes.find(t => t.id === currentShift);
+                    const bgColor = shiftType ? shiftType.color : 'white';
+                    
+                    const borderStyle = hasViolation ? 'border:3px solid #3498db !important; box-shadow:0 0 8px rgba(52,152,219,0.5);' : '';
+                    const titleAttr = hasViolation ? ' title="⚠️ ' + violationMessage + '"' : '';
+                    
+                    html += '<td class="' + cellClass + '" style="background:' + bgColor + '; padding:5px; position:relative; ' + borderStyle + '"' + titleAttr + '>';
+                    
+                    // 希望シフトマーク（右下に表示）
+                    const requestedOff = requestedOffData[key] || false;
+                    if (requestedOff) {
+                        html += '<div style="position:absolute; bottom:2px; right:2px; z-index:5;">';
+                        html += '<span style="display:inline-block; width:24px; height:24px; border:2px solid #ff6b6b; border-radius:50%; text-align:center; line-height:20px; font-size:14px; font-weight:bold; color:#ff6b6b; background:white;">希</span>';
+                        html += '</div>';
+                    }
+                    
+                    // 希望シフトチェックボタン（左下に配置、勤務表示と被らない）
+                    html += '<div style="position:absolute; bottom:2px; left:2px; z-index:5;">';
+                    html += '<button onclick="toggleRequestedOff(\'' + key + '\')" style="font-size:8px; padding:1px 3px; background:#f0f0f0; border:1px solid #ccc; border-radius:2px; cursor:pointer; line-height:1;">' + (requestedOff ? '✓' : '希') + '</button>';
+                    html += '</div>';
+                    
+                    html += '<textarea placeholder="" onchange="updateNote(\'' + key + '\', this.value)">' + currentNote + '</textarea>';
+                    html += '<select onchange="updateShift(\'' + key + '\', this.value)">';
+                    html += '<option value="">-</option>';
+                    
+                    shiftTypes.forEach(type => {
+                        const selected = currentShift === type.id ? ' selected' : '';
+                        const simpleName = type.name.replace(/\n/g, ' ');
+                        html += '<option value="' + type.id + '"' + selected + '>' + simpleName + '</option>';
+                    });
+                    
+                    html += '</select>';
+                    
+                    // 選択された勤務を改行付きで表示
+                    if (shiftType && currentShift) {
+                        html += '<div class="shift-display" style="background:' + bgColor + ';">' + shiftType.name + '</div>';
+                    }
+                    
+                    html += '</td>';
+                }
+                html += '</tr>';
+            });
+
+            // 下段グループの場合は行事・予定行と集計行を追加
+            if (isBottom) {
+                html += '<tr class="event-row">';
+                html += '<td style="background:#fff3cd; font-weight:bold; padding:8px 5px; writing-mode:vertical-rl; text-orientation:upright; font-size:18px; vertical-align:middle; text-align:center; line-height:1;">行事・予定</td>';
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(year, month - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    const eventKey = actualYear + '-' + actualMonth + '-' + day + '-event';
+                    const currentEvent = eventData[eventKey] || '';
+                    
+                    html += '<td style="background:#fff3cd; text-align:center; vertical-align:middle;">';
+                    html += '<textarea class="event-textarea" placeholder="" onchange="updateEvent(\'' + eventKey + '\', this.value)" style="width:85%; padding:6px; border:1px solid #e1e4e8; border-radius:4px; font-size:16px; font-weight:600; height:90px; resize:vertical; font-family:inherit; writing-mode:vertical-rl; text-orientation:upright; margin:0 auto; display:inline-block;">' + currentEvent + '</textarea>';
+                    html += '</td>';
+                }
+                html += '</tr>';
+                
+                // 勤務形態別集計行
+                html += '<tr class="summary-row" style="background:#e9ecef; font-weight:bold;">';
+                html += '<td>集計</td>';
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(year, month - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    
+                    // その日の全職員のシフトをカウント
+                    const allStaff = [...staffListTop, ...staffListMiddle, ...staffListBottom];
+                    const shiftCount = {};
+                    
+                    allStaff.forEach(staff => {
+                        const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                        const shift = scheduleData[key];
+                        if (shift && shift !== '') {
+                            const shiftType = shiftTypes.find(t => t.id === shift);
+                            if (shiftType) {
+                                const name = shiftType.name.replace(/\n/g, '');
+                                shiftCount[name] = (shiftCount[name] || 0) + 1;
+                            }
+                        }
+                    });
+                    
+                    // 配置チェック対象の勤務形態IDをリストアップ
+                    const checkedShiftNames = duplicateCheckShifts.map(shiftId => {
+                        const st = shiftTypes.find(t => t.id === shiftId);
+                        return st ? st.name.replace(/\n/g, '') : '';
+                    }).filter(n => n);
+                    
+                    // 集計結果を表示（shiftTypesの定義順に固定）
+                    let countText = '';
+                    shiftTypes.forEach(type => {
+                        const name = type.name.replace(/\n/g, '');
+                        const count = shiftCount[name] || 0;
+                        const isChecked = checkedShiftNames.includes(name);
+                        
+                        // 配置チェック対象は0でも表示、それ以外は1以上で表示
+                        if (isChecked || count > 0) {
+                            if (countText) countText += '<br>';
+                            
+                            // 配置チェック対象で0人の場合は赤文字
+                            if (count === 0 && isChecked) {
+                                countText += '<span style="color:#e74c3c; font-weight:bold;">' + name + ':0</span>';
+                            } else {
+                                countText += name + ':' + count;
+                            }
+                        }
+                    });
+                    
+                    html += '<td style="font-size:9px; line-height:1.3; padding:3px;">' + (countText || '-') + '</td>';
+                }
+                html += '</tr>';
+            }
+
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // シフト更新
+        function updateShift(key, value) {
+            scheduleData[key] = value;
+            generateCalendar(); // 再描画で集計も更新される
+            saveToLocalStorage();
+        }
+        
+        // 全データクリア
+        function clearAllData() {
+            if (confirm('本当に全てのデータをクリアしますか？\nこの操作は取り消せません。')) {
+                // すべてのデータを初期化
+                scheduleData = {};
+                notesData = {};
+                eventData = {};
+                requestedOffData = {};
+                staffNotesData = {};
+                staffListTop = [];
+                staffListMiddle = [];
+                staffListBottom = [];
+                
+                // ローカルストレージもクリア
+                localStorage.clear();
+                
+                // 画面を再描画
+                updateStaffList();
+                generateCalendar();
+                
+                alert('すべてのデータをクリアしました');
+            }
+        }
+        
+        // 画像として出力
+        function exportAsImage() {
+            const element = document.getElementById('calendarContainer');
+            if (!element) {
+                alert('カレンダーが生成されていません');
+                return;
+            }
+            
+            // 一時的にスクロールを解除
+            const tableContainer = document.getElementById('tableContainer');
+            const originalOverflow = tableContainer.style.overflow;
+            const originalMaxHeight = tableContainer.style.maxHeight;
+            tableContainer.style.overflow = 'visible';
+            tableContainer.style.maxHeight = 'none';
+            
+            html2canvas(element, {
+                scale: 2, // 高解像度
+                backgroundColor: '#ffffff',
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                // 元に戻す
+                tableContainer.style.overflow = originalOverflow;
+                tableContainer.style.maxHeight = originalMaxHeight;
+                
+                // 画像をダウンロード
+                const link = document.createElement('a');
+                const year = document.getElementById('yearSelect').value;
+                const month = document.getElementById('monthSelect').value;
+                link.download = '勤務表_' + year + '年' + month + '月.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                alert('画像として保存しました！');
+            }).catch(error => {
+                // 元に戻す
+                tableContainer.style.overflow = originalOverflow;
+                tableContainer.style.maxHeight = originalMaxHeight;
+                
+                console.error('画像出力エラー:', error);
+                alert('画像出力に失敗しました');
+            });
+        }
+        
+        // 印刷（横向きを案内）
+        // PDFとして出力（横向き固定、1ページに収める）
+        function exportAsPDF() {
+            const calendarContainer = document.getElementById('calendarContainer');
+            if (!calendarContainer) {
+                alert('カレンダーが生成されていません');
+                return;
+            }
+            
+            // キャプチャ用のコンテナを作成
+            const captureDiv = document.createElement('div');
+            captureDiv.style.position = 'absolute';
+            captureDiv.style.left = '-9999px';
+            captureDiv.style.top = '0';
+            captureDiv.style.width = 'auto';
+            captureDiv.style.height = 'auto';
+            captureDiv.style.overflow = 'visible';
+            captureDiv.style.backgroundColor = '#ffffff';
+            
+            // カレンダーコンテナをクローン
+            const clone = calendarContainer.cloneNode(true);
+            
+            // クローン内のselectボックスとボタンを削除
+            const selects = clone.querySelectorAll('select');
+            selects.forEach(select => select.remove());
+            
+            const buttons = clone.querySelectorAll('button');
+            buttons.forEach(button => button.remove());
+            
+            // 勤務セルのtextarea（備考欄）を削除（行事欄以外）
+            const textareas = clone.querySelectorAll('textarea:not(.event-textarea)');
+            textareas.forEach(textarea => textarea.remove());
+            
+            // 行事欄のtextareaをdivに変換（改行で横並び）
+            const eventTextareas = clone.querySelectorAll('.event-textarea');
+            eventTextareas.forEach(textarea => {
+                const value = textarea.value;
+                const div = document.createElement('div');
+                div.style.cssText = 'width:100%; padding:10px; font-size:16px; font-weight:600; min-height:90px; font-family:inherit; display:flex; justify-content:center; gap:10px; overflow:hidden;';
+                
+                // 改行で分割して、各行を縦書きの列にする
+                const lines = value.split('\n');
+                lines.forEach(line => {
+                    const column = document.createElement('div');
+                    column.style.cssText = 'display:flex; flex-direction:column; align-items:center; line-height:1.4;';
+                    // 各文字を縦に並べる
+                    line.split('').forEach(char => {
+                        const charDiv = document.createElement('div');
+                        charDiv.textContent = char;
+                        column.appendChild(charDiv);
+                    });
+                    div.appendChild(column);
+                });
+                
+                textarea.parentNode.replaceChild(div, textarea);
+            });
+            
+            // クローン内のスクロールエリアを展開
+            const clonedScrollArea = clone.querySelector('#tableContainer');
+            if (clonedScrollArea) {
+                clonedScrollArea.style.overflow = 'visible';
+                clonedScrollArea.style.maxHeight = 'none';
+                clonedScrollArea.style.height = 'auto';
+                clonedScrollArea.style.transform = 'none';
+            }
+            
+            captureDiv.appendChild(clone);
+            document.body.appendChild(captureDiv);
+            
+            // DOMの更新を待つ
+            setTimeout(() => {
+                html2canvas(captureDiv, {
+                    scale: 1.5,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true
+                }).then(canvas => {
+                    // キャプチャ用divを削除
+                    document.body.removeChild(captureDiv);
+                    
+                    console.log('Canvas size:', canvas.width, 'x', canvas.height);
+                    
+                    // jsPDFを使用してPDF作成（横向き）
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: 'landscape',
+                        unit: 'mm',
+                        format: 'a4'
+                    });
+                    
+                    const pdfWidth = 297;
+                    const pdfHeight = 210;
+                    const margin = 5;
+                    
+                    const availableWidth = pdfWidth - (margin * 2);
+                    const availableHeight = pdfHeight - (margin * 2);
+                    
+                    // 画像の縦横比
+                    const imgRatio = canvas.width / canvas.height;
+                    const pageRatio = availableWidth / availableHeight;
+                    
+                    let imgWidth, imgHeight;
+                    
+                    // 画像を余白内に収める
+                    if (imgRatio > pageRatio) {
+                        // 画像が横長 → 幅を基準に
+                        imgWidth = availableWidth;
+                        imgHeight = availableWidth / imgRatio;
+                    } else {
+                        // 画像が縦長 → 高さを基準に
+                        imgHeight = availableHeight;
+                        imgWidth = availableHeight * imgRatio;
+                    }
+                    
+                    // 中央配置
+                    const xOffset = (pdfWidth - imgWidth) / 2;
+                    const yOffset = (pdfHeight - imgHeight) / 2;
+                    
+                    const imgData = canvas.toDataURL('image/png');
+                    pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
+                    
+                    const year = document.getElementById('yearSelect').value;
+                    const month = document.getElementById('monthSelect').value;
+                    pdf.save('勤務表_' + year + '年' + month + '月.pdf');
+                    
+                    alert('PDFとして保存しました！');
+                }).catch(error => {
+                    // キャプチャ用divを削除
+                    if (document.body.contains(captureDiv)) {
+                        document.body.removeChild(captureDiv);
+                    }
+                    
+                    console.error('PDF出力エラー:', error);
+                    alert('PDF出力に失敗しました');
+                });
+            }, 300);
+        }
+
+        // 備考更新
+        function updateNote(key, value) {
+            notesData[key] = value;
+            saveToLocalStorage();
+            console.log('備考更新:', key, value);
+        }
+
+        // 行事・予定更新
+        function updateEvent(key, value) {
+            eventData[key] = value;
+            saveToLocalStorage();
+            console.log('行事更新:', key, value);
+        }
+        
+        // 行事欄のサイズ変更を連動させる
+        function syncEventTextareaHeights() {
+            const eventTextareas = document.querySelectorAll('.event-textarea');
+            if (eventTextareas.length === 0) return;
+            
+            eventTextareas.forEach(textarea => {
+                // ResizeObserverでサイズ変更を監視
+                const resizeObserver = new ResizeObserver(entries => {
+                    for (let entry of entries) {
+                        const newHeight = entry.target.style.height;
+                        // 全ての行事欄の高さを同じにする
+                        eventTextareas.forEach(ta => {
+                            ta.style.height = newHeight;
+                        });
+                    }
+                });
+                resizeObserver.observe(textarea);
+            });
+        }
+        
+        // カレンダー生成後に行事欄のサイズ連動を設定
+        const originalGenerateCalendar = generateCalendar;
+        generateCalendar = function() {
+            originalGenerateCalendar();
+            setTimeout(() => syncEventTextareaHeights(), 100);
+        };
+
+        // 希望休の切り替え
+        function toggleRequestedOff(key) {
+            requestedOffData[key] = !requestedOffData[key];
+            if (!requestedOffData[key]) {
+                delete requestedOffData[key]; // falseの場合は削除
+            }
+            generateCalendar();
+            saveToLocalStorage();
+            console.log('希望休更新:', key, requestedOffData[key]);
+        }
+
+        // スタッフ備考更新
+        function updateStaffNote(key, value) {
+            staffNotesData[key] = value;
+            saveToLocalStorage();
+            console.log('スタッフ備考更新:', key, value);
+        }
+
+        // 職員1名分の勤務データをコピー（漢字のみ）
+        function copyStaffRow(staffName, year, month, event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            let copyText = staffName + '\t';
+            
+            for (let i = 0; i < dayCount; i++) {
+                const currentDate = new Date(year, month - 1, 16 + i);
+                const day = currentDate.getDate();
+                const actualMonth = currentDate.getMonth() + 1;
+                const actualYear = currentDate.getFullYear();
+                const key = actualYear + '-' + actualMonth + '-' + day + '-' + staffName;
+                const shift = scheduleData[key] || '';
+                
+                let cellText = '';
+                if (shift) {
+                    const shiftType = shiftTypes.find(t => t.id === shift);
+                    if (shiftType) {
+                        // 漢字のみを抽出
+                        cellText = shiftType.name.replace(/[^\u4E00-\u9FFF]/g, '');
+                    }
+                }
+                
+                copyText += cellText + '\t';
+            }
+            
+            navigator.clipboard.writeText(copyText).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.background = '#28a745';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '';
+                }, 1000);
+            }).catch(err => {
+                alert('コピーに失敗しました');
+                console.error('コピーエラー:', err);
+            });
+        }
+
+        // 勤務形態設定モーダル
+        function openShiftTypeModal() {
+            document.getElementById('shiftTypeModal').style.display = 'flex';
+            updateShiftTypeList();
+        }
+
+        function closeShiftTypeModal() {
+            document.getElementById('shiftTypeModal').style.display = 'none';
+        }
+
+        function updateShiftTypeList() {
+            const container = document.getElementById('shiftTypeList');
+            container.innerHTML = '';
+            
+            shiftTypes.forEach((type, index) => {
+                const div = document.createElement('div');
+                div.style.cssText = 'margin:10px 0; padding:10px; background:#f8f9fa; border-radius:5px; display:flex; align-items:center; gap:10px;';
+                div.innerHTML = '<div style="width:40px; height:40px; background:' + type.color + '; border:2px solid #ddd; border-radius:4px;"></div>' +
+                    '<textarea style="width:200px; height:40px;" onchange="updateShiftTypeName(' + index + ', this.value)">' + type.name + '</textarea>' +
+                    '<input type="color" value="' + type.color + '" onchange="updateShiftTypeColor(' + index + ', this.value)">' +
+                    '<button onclick="removeShiftType(' + index + ')">削除</button>';
+                container.appendChild(div);
+            });
+        }
+
+        function addShiftType() {
+            const name = document.getElementById('newShiftTypeName').value.trim();
+            const color = document.getElementById('newShiftTypeColor').value;
+            
+            if (!name) {
+                alert('勤務形態名を入力してください');
+                return;
+            }
+            
+            const id = 'shift_' + Date.now();
+            shiftTypes.push({ id: id, name: name, color: color });
+            
+            document.getElementById('newShiftTypeName').value = '';
+            updateShiftTypeList();
+            generateCalendar();
+            saveToLocalStorage();
+        }
+
+        function updateShiftTypeName(index, name) {
+            shiftTypes[index].name = name;
+            generateCalendar();
+            saveToLocalStorage();
+        }
+
+        function updateShiftTypeColor(index, color) {
+            shiftTypes[index].color = color;
+            generateCalendar();
+            saveToLocalStorage();
+        }
+
+        function removeShiftType(index) {
+            if (confirm('この勤務形態を削除しますか？')) {
+                shiftTypes.splice(index, 1);
+                updateShiftTypeList();
+                generateCalendar();
+                saveToLocalStorage();
+            }
+        }
+
+        // 配置チェックモーダル
+        function openPlacementCheckModal() {
+            document.getElementById('placementCheckModal').style.display = 'flex';
+            updatePlacementCheckList();
+            updatePlacementCheckSelect();
+        }
+
+        function closePlacementCheckModal() {
+            document.getElementById('placementCheckModal').style.display = 'none';
+        }
+
+        function updatePlacementCheckList() {
+            const container = document.getElementById('placementCheckList');
+            container.innerHTML = '';
+            
+            duplicateCheckShifts.forEach((shiftId, index) => {
+                const shiftType = shiftTypes.find(t => t.id === shiftId);
+                const div = document.createElement('div');
+                div.style.cssText = 'margin:8px 0; padding:8px; background:#f8f9fa; border-radius:5px; display:flex; justify-content:space-between; align-items:center;';
+                div.innerHTML = '<span>' + (shiftType ? shiftType.name : shiftId) + '</span><button onclick="removePlacementCheck(' + index + ')">削除</button>';
+                container.appendChild(div);
+            });
+        }
+
+        function updatePlacementCheckSelect() {
+            const select = document.getElementById('newCheckShiftType');
+            select.innerHTML = '<option value="">勤務形態を選択</option>';
+            shiftTypes.forEach(type => {
+                select.innerHTML += '<option value="' + type.id + '">' + type.name + '</option>';
+            });
+        }
+
+        function addPlacementCheck() {
+            const shiftId = document.getElementById('newCheckShiftType').value;
+            if (!shiftId) {
+                alert('勤務形態を選択してください');
+                return;
+            }
+            if (!duplicateCheckShifts.includes(shiftId)) {
+                duplicateCheckShifts.push(shiftId);
+                updatePlacementCheckList();
+            }
+        }
+
+        function removePlacementCheck(index) {
+            duplicateCheckShifts.splice(index, 1);
+            updatePlacementCheckList();
+        }
+
+        // 表示サイズ調整
+        function adjustTableZoom(delta) {
+            tableZoom = Math.max(50, Math.min(200, tableZoom + delta)); // 50%〜200%の範囲
+            applyTableZoom();
+        }
+
+        function resetTableZoom() {
+            tableZoom = 100;
+            applyTableZoom();
+        }
+
+        function applyTableZoom() {
+            const container = document.getElementById('tableContainer');
+            if (container) {
+                container.style.transform = 'scale(' + (tableZoom / 100) + ')';
+                container.style.transformOrigin = 'top left';
+                
+                // コンテナのサイズを調整してスクロールが正しく動作するように
+                const scaleFactor = tableZoom / 100;
+                container.style.width = (100 / scaleFactor) + '%';
+                container.style.height = 'calc((100vh - 200px) / ' + scaleFactor + ')';
+            }
+            
+            // 表示を更新
+            document.getElementById('zoomDisplay').textContent = tableZoom + '%';
+            
+            // ローカルストレージに保存
+            localStorage.setItem('tableZoom', tableZoom);
+        }
+
+        // 連勤ルール設定モーダル
+        function openWorkRulesModal() {
+            document.getElementById('workRulesModal').style.display = 'flex';
+            updateWorkRulesList();
+        }
+
+        function closeWorkRulesModal() {
+            document.getElementById('workRulesModal').style.display = 'none';
+        }
+
+        function updateWorkRulesList() {
+            const container = document.getElementById('workRulesList');
+            container.innerHTML = '';
+            
+            const allStaff = [...staffListTop, ...staffListMiddle, ...staffListBottom];
+            
+            allStaff.forEach(staff => {
+                const rule = staffWorkRules.find(r => r.staff === staff);
+                const maxDays = rule ? rule.maxConsecutiveDays : 4; // デフォルト4日
+                
+                const div = document.createElement('div');
+                div.style.cssText = 'margin:10px 0; padding:12px; background:#f8f9fa; border-radius:5px; display:flex; justify-content:space-between; align-items:center;';
+                div.innerHTML = '<span style="font-weight:600; min-width:120px;">' + staff + '</span>' +
+                    '<div style="display:flex; align-items:center; gap:8px;">' +
+                    '<label style="font-size:13px;">最大連続勤務:</label>' +
+                    '<input type="number" min="1" max="30" value="' + maxDays + '" ' +
+                    'onchange="updateStaffWorkRule(\'' + staff + '\', this.value)" ' +
+                    'style="width:60px; padding:6px; border:1px solid #e1e4e8; border-radius:4px;">' +
+                    '<span style="font-size:13px;">日</span>' +
+                    '</div>';
+                container.appendChild(div);
+            });
+            
+            if (allStaff.length === 0) {
+                container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">職員を追加してください</p>';
+            }
+        }
+
+        function updateStaffWorkRule(staff, maxDays) {
+            const existingRule = staffWorkRules.find(r => r.staff === staff);
+            const days = parseInt(maxDays);
+            
+            if (existingRule) {
+                existingRule.maxConsecutiveDays = days;
+            } else {
+                staffWorkRules.push({ staff: staff, maxConsecutiveDays: days });
+            }
+            
+            generateCalendar(); // 再描画して連勤チェックを反映
+            saveToLocalStorage();
+        }
+
+        // 連勤・配置チェック実行
+        function checkAllViolations() {
+            const allStaff = [...staffListTop, ...staffListMiddle, ...staffListBottom];
+            let violations = [];
+            
+            // 連勤チェック（4日以上）
+            allStaff.forEach(staff => {
+                let consecutiveDays = 0;
+                let startDate = null;
+                
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(currentYear, currentMonth - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const shift = scheduleData[key];
+                    
+                    // 勤務形態を取得
+                    const shiftType = shiftTypes.find(t => t.id === shift);
+                    const shiftName = shiftType ? shiftType.name.replace(/\n/g, '').trim() : '';
+                    
+                    // 休み以外の勤務（空白、休、明、2明以外）
+                    if (shift && shift !== '' && shiftName !== '休' && shiftName !== '明' && shiftName !== '2明') {
+                        if (consecutiveDays === 0) {
+                            startDate = actualMonth + '/' + day;
+                        }
+                        consecutiveDays++;
+                        
+                        if (consecutiveDays >= 4) {
+                            violations.push('⚠️ ' + staff + ': ' + startDate + 'から' + consecutiveDays + '連勤');
+                        }
+                    } else {
+                        consecutiveDays = 0;
+                        startDate = null;
+                    }
+                }
+            });
+            
+            // 配置チェック（設定された勤務形態について）
+            if (duplicateCheckShifts.length > 0) {
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(currentYear, currentMonth - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    
+                    duplicateCheckShifts.forEach(shiftId => {
+                        const shiftType = shiftTypes.find(t => t.id === shiftId);
+                        let count = 0;
+                        
+                        allStaff.forEach(staff => {
+                            const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                            if (scheduleData[key] === shiftId) {
+                                count++;
+                            }
+                        });
+                        
+                        if (count === 0) {
+                            violations.push('❌ ' + actualMonth + '/' + day + ': ' + (shiftType ? shiftType.name : shiftId) + 'が0人（未配置）');
+                        } else if (count >= 2) {
+                            violations.push('⚠️ ' + actualMonth + '/' + day + ': ' + (shiftType ? shiftType.name : shiftId) + 'が' + count + '人（重複）');
+                        }
+                    });
+                }
+            }
+            
+            // 結果表示
+            if (violations.length === 0) {
+                alert('✅ 問題ありません！\n\n連勤・配置の確認が完了しました。');
+            } else {
+                const message = '以下の問題が見つかりました：\n\n' + violations.slice(0, 20).join('\n') + 
+                    (violations.length > 20 ? '\n\n...他' + (violations.length - 20) + '件' : '');
+                alert(message);
+            }
+        }
+
+        // AIシフト生成モーダル
+        function openAIModal() {
+            document.getElementById('aiModal').style.display = 'flex';
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModal').style.display = 'none';
+        }
+
+        function copyAIPrompt() {
+            const userConditions = document.getElementById('aiPrompt').value.trim();
+            
+            if (!userConditions) {
+                alert('条件を入力してください');
+                return;
+            }
+            
+            const allStaff = [...staffListTop, ...staffListMiddle, ...staffListBottom];
+            const shiftTypesInfo = shiftTypes.map(t => t.id + ': ' + t.name.replace(/\n/g, ' ')).join('\n');
+            
+            const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+            const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+            
+            // 日数を計算
+            const startDate = new Date(currentYear, currentMonth - 1, 16);
+            const endDate = new Date(nextYear, nextMonth - 1, 15);
+            const dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            const prompt = `介護施設のシフト作成AIとして、${dayCount}日分のシフトをJSON形式で生成してください。
+
+【基本情報】
+職員: ${allStaff.join(', ')}
+
+勤務形態:
+${shiftTypesInfo}
+
+期間: ${currentYear}年${currentMonth}月16日〜${nextYear}年${nextMonth}月15日（${dayCount}日間）
+
+【ユーザー指定条件】
+${userConditions}
+
+【重要な指示】
+1. 全ての条件を厳密に守ってください
+2. キー形式は必ず "年-月-日-職員名" （月・日は0埋めなし）例: "2026-2-16-上村"
+3. 備考が必要な場合はnotesに記載
+4. エラーを避けるため、必ず有効な勤務形態IDのみ使用
+
+【出力形式】
+説明なしで以下のJSON形式のみで出力:
+{
+  "shifts": {
+    "2026-2-16-上村": "日N",
+    ...全職員の30日分...
+  },
+  "notes": {
+    "2026-2-16-上村": "■",
+    "2026-2-28-上村": "PM休",
+    ...備考が必要な日のみ...
+  }
+}`;
+
+            navigator.clipboard.writeText(prompt).then(() => {
+                const statusDiv = document.getElementById('aiStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+                statusDiv.textContent = '✅ プロンプトをコピーしました！Claude.aiを開いてペーストしてください。';
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }).catch(err => {
+                alert('コピーに失敗しました: ' + err.message);
+            });
+        }
+
+        function openPasteModal() {
+            document.getElementById('pasteModal').style.display = 'flex';
+        }
+
+        function closePasteModal() {
+            document.getElementById('pasteModal').style.display = 'none';
+            document.getElementById('pasteArea').value = '';
+        }
+
+        function applyPastedData() {
+            const jsonText = document.getElementById('pasteArea').value.trim();
+            
+            if (!jsonText) {
+                alert('JSONデータを貼り付けてください');
+                return;
+            }
+            
+            try {
+                // JSONを抽出（```json ```で囲まれている場合にも対応）
+                let cleanJson = jsonText;
+                const jsonMatch = jsonText.match(/```json\s*(\{[\s\S]*\})\s*```/) || jsonText.match(/(\{[\s\S]*\})/);
+                if (jsonMatch) {
+                    cleanJson = jsonMatch[1] || jsonMatch[0];
+                }
+                
+                const result = JSON.parse(cleanJson);
+                
+                if (!result.shifts) {
+                    throw new Error('shiftsデータが見つかりません');
+                }
+                
+                // シフトデータを適用
+                let updateCount = 0;
+                Object.entries(result.shifts).forEach(([key, value]) => {
+                    scheduleData[key] = value;
+                    updateCount++;
+                });
+                
+                // 備考データを適用
+                if (result.notes) {
+                    Object.entries(result.notes).forEach(([key, value]) => {
+                        notesData[key] = value;
+                    });
+                }
+                
+                // カレンダーを更新
+                generateCalendar();
+                saveToLocalStorage();
+                
+                // 成功メッセージ
+                const statusDiv = document.getElementById('aiStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+                statusDiv.textContent = '✅ シフト生成完了！(' + updateCount + '件設定)';
+                
+                // 追加修正セクションを表示
+                document.getElementById('additionalModifySection').style.display = 'block';
+                
+                closePasteModal();
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('JSONパースエラー:', error);
+                alert('データの形式が正しくありません: ' + error.message + '\n\nJSONデータのみを貼り付けてください。');
+            }
+        }
+
+        // 追加修正プロンプトをコピー
+        function copyModificationPrompt() {
+            const additionalConditions = document.getElementById('additionalPrompt').value.trim();
+            
+            if (!additionalConditions) {
+                alert('修正内容を入力してください');
+                return;
+            }
+            
+            const allStaff = [...staffListTop, ...staffListMiddle, ...staffListBottom];
+            const shiftTypesInfo = shiftTypes.map(t => t.id + ': ' + t.name.replace(/\n/g, ' ')).join('\n');
+            
+            const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+            const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+            
+            // 日数を計算
+            const startDate = new Date(currentYear, currentMonth - 1, 16);
+            const endDate = new Date(nextYear, nextMonth - 1, 15);
+            const dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            
+            // 現在のシフトデータをサンプルとして含める（最初の3名×5日分）
+            let currentShiftSample = '【現在のシフト（一部）】\n';
+            const sampleStaff = allStaff.slice(0, 3);
+            for (let i = 0; i < 5; i++) {
+                const currentDate = new Date(currentYear, currentMonth - 1, 16 + i);
+                const day = currentDate.getDate();
+                const actualMonth = currentDate.getMonth() + 1;
+                const actualYear = currentDate.getFullYear();
+                
+                sampleStaff.forEach(staff => {
+                    const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const shift = scheduleData[key] || '';
+                    if (shift) {
+                        const shiftType = shiftTypes.find(t => t.id === shift);
+                        currentShiftSample += `${actualMonth}/${day} ${staff}: ${shiftType ? shiftType.name : shift}\n`;
+                    }
+                });
+            }
+            currentShiftSample += '...(以下省略)';
+            
+            const prompt = `既存のシフトを修正してください。
+
+【基本情報】
+職員: ${allStaff.join(', ')}
+
+勤務形態:
+${shiftTypesInfo}
+
+期間: ${currentYear}年${currentMonth}月16日〜${nextYear}年${nextMonth}月15日（${dayCount}日間）
+
+${currentShiftSample}
+
+【修正内容】
+${additionalConditions}
+
+【重要な指示】
+1. 既存のシフトは維持し、修正が必要な部分のみ変更してください
+2. キー形式は必ず "年-月-日-職員名" （月・日は0埋めなし）例: "2026-2-16-上村"
+3. 備考が必要な場合はnotesに記載
+4. 変更された部分だけでなく、全${dayCount}日分の全職員のデータを出力してください
+
+【出力形式】
+説明なしで以下のJSON形式のみで出力:
+{
+  "shifts": {
+    "2026-2-16-上村": "日N",
+    ...全職員の30日分...
+  },
+  "notes": {
+    "2026-2-16-上村": "■",
+    ...備考が必要な日のみ...
+  }
+}`;
+
+            navigator.clipboard.writeText(prompt).then(() => {
+                const statusDiv = document.getElementById('aiStatus');
+                statusDiv.style.display = 'block';
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+                statusDiv.textContent = '✅ 修正プロンプトをコピーしました！Claude.aiで修正内容を生成してください。';
+                
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }).catch(err => {
+                alert('コピーに失敗しました: ' + err.message);
+            });
+        }
+
+        // データエクスポート（JSON形式で保存）
+        function exportData() {
+            const data = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                staffListTop: staffListTop,
+                staffListMiddle: staffListMiddle,
+                staffListBottom: staffListBottom,
+                scheduleData: scheduleData,
+                notesData: notesData,
+                eventData: eventData,
+                requestedOffData: requestedOffData,
+                staffNotesData: staffNotesData,
+                shiftTypes: shiftTypes,
+                staffWorkRules: staffWorkRules,
+                duplicateCheckShifts: duplicateCheckShifts
+            };
+            
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '勤務表データ_' + currentYear + '年' + currentMonth + '月_' + new Date().toISOString().slice(0,10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            alert('データを保存しました。このファイルを他のPCで読み込むことで同じ環境を再現できます。');
+        }
+
+        // データインポート（JSON形式から読込）
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // データ検証
+                    if (!data.version) {
+                        throw new Error('無効なデータファイルです');
+                    }
+                    
+                    // データを復元
+                    if (data.staffListTop) staffListTop = data.staffListTop;
+                    if (data.staffListMiddle) staffListMiddle = data.staffListMiddle;
+                    if (data.staffListBottom) staffListBottom = data.staffListBottom;
+                    if (data.scheduleData) scheduleData = data.scheduleData;
+                    if (data.notesData) notesData = data.notesData;
+                    if (data.eventData) eventData = data.eventData;
+                    if (data.requestedOffData) requestedOffData = data.requestedOffData;
+                    if (data.staffNotesData) staffNotesData = data.staffNotesData;
+                    if (data.shiftTypes) shiftTypes = data.shiftTypes;
+                    if (data.staffWorkRules) staffWorkRules = data.staffWorkRules;
+                    if (data.duplicateCheckShifts) duplicateCheckShifts = data.duplicateCheckShifts;
+                    
+                    // 画面を更新
+                    updateStaffList();
+                    generateCalendar();
+                    
+                    // ローカルストレージにも保存
+                    saveToLocalStorage();
+                    
+                    alert('データを読み込みました！\n\nエクスポート日時: ' + new Date(data.exportDate).toLocaleString());
+                    
+                } catch (error) {
+                    console.error('インポートエラー:', error);
+                    alert('データの読み込みに失敗しました: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // ファイル選択をリセット
+            event.target.value = '';
+        }
+
+        // ローカルストレージに保存
+        function saveToLocalStorage() {
+            localStorage.setItem('staffListTop', JSON.stringify(staffListTop));
+            localStorage.setItem('staffListMiddle', JSON.stringify(staffListMiddle));
+            localStorage.setItem('staffListBottom', JSON.stringify(staffListBottom));
+            localStorage.setItem('scheduleData', JSON.stringify(scheduleData));
+            localStorage.setItem('notesData', JSON.stringify(notesData));
+            localStorage.setItem('eventData', JSON.stringify(eventData));
+            localStorage.setItem('requestedOffData', JSON.stringify(requestedOffData));
+            localStorage.setItem('staffNotesData', JSON.stringify(staffNotesData));
+            localStorage.setItem('shiftTypes', JSON.stringify(shiftTypes));
+            localStorage.setItem('staffWorkRules', JSON.stringify(staffWorkRules));
+            localStorage.setItem('duplicateCheckShifts', JSON.stringify(duplicateCheckShifts));
+        }
+
+        // ローカルストレージから読込
+        function loadFromLocalStorage() {
+            try {
+                const savedStaffTop = localStorage.getItem('staffListTop');
+                const savedStaffMiddle = localStorage.getItem('staffListMiddle');
+                const savedStaffBottom = localStorage.getItem('staffListBottom');
+                const savedSchedule = localStorage.getItem('scheduleData');
+                const savedNotes = localStorage.getItem('notesData');
+                const savedEvents = localStorage.getItem('eventData');
+                const savedRequestedOff = localStorage.getItem('requestedOffData');
+                const savedStaffNotes = localStorage.getItem('staffNotesData');
+                const savedShiftTypes = localStorage.getItem('shiftTypes');
+                const savedRules = localStorage.getItem('staffWorkRules');
+                const savedChecks = localStorage.getItem('duplicateCheckShifts');
+                
+                if (savedStaffTop) staffListTop = JSON.parse(savedStaffTop);
+                if (savedStaffMiddle) staffListMiddle = JSON.parse(savedStaffMiddle);
+                if (savedStaffBottom) staffListBottom = JSON.parse(savedStaffBottom);
+                if (savedSchedule) scheduleData = JSON.parse(savedSchedule);
+                if (savedNotes) notesData = JSON.parse(savedNotes);
+                if (savedEvents) eventData = JSON.parse(savedEvents);
+                if (savedRequestedOff) requestedOffData = JSON.parse(savedRequestedOff);
+                if (savedStaffNotes) staffNotesData = JSON.parse(savedStaffNotes);
+                if (savedShiftTypes) shiftTypes = JSON.parse(savedShiftTypes);
+                if (savedRules) staffWorkRules = JSON.parse(savedRules);
+                if (savedChecks) duplicateCheckShifts = JSON.parse(savedChecks);
+            } catch (error) {
+                console.error('ローカルストレージ読込エラー:', error);
+            }
+        }
+
+        // Excel出力
+        function exportToExcel() {
+            const allStaff = [...staffListTop, ...staffListMiddle, ...staffListBottom];
+            const data = [];
+            
+            // ヘッダー行
+            const header = ['スタッフ'];
+            for (let i = 0; i < dayCount; i++) {
+                const currentDate = new Date(currentYear, currentMonth - 1, 16 + i);
+                const day = currentDate.getDate();
+                const actualMonth = currentDate.getMonth() + 1;
+                header.push(actualMonth + '/' + day);
+            }
+            data.push(header);
+            
+            // データ行
+            allStaff.forEach(staff => {
+                const row = [staff];
+                for (let i = 0; i < dayCount; i++) {
+                    const currentDate = new Date(currentYear, currentMonth - 1, 16 + i);
+                    const day = currentDate.getDate();
+                    const actualMonth = currentDate.getMonth() + 1;
+                    const actualYear = currentDate.getFullYear();
+                    const key = actualYear + '-' + actualMonth + '-' + day + '-' + staff;
+                    const shift = scheduleData[key] || '';
+                    
+                    let shiftText = '';
+                    if (shift) {
+                        const shiftType = shiftTypes.find(t => t.id === shift);
+                        if (shiftType) {
+                            shiftText = shiftType.name.replace(/\n/g, ' ');
+                        }
+                    }
+                    row.push(shiftText);
+                }
+                data.push(row);
+            });
+            
+            // Excelファイル生成
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(data);
+            
+            // 列幅設定
+            const colWidths = [{ wch: 12 }];
+            for (let i = 0; i < dayCount; i++) {
+                colWidths.push({ wch: 10 });
+            }
+            ws['!cols'] = colWidths;
+            
+            XLSX.utils.book_append_sheet(wb, ws, currentYear + '年' + currentMonth + '月');
+            XLSX.writeFile(wb, '勤務表_' + currentYear + '年' + currentMonth + '月.xlsx');
+        }
+
+        // ページ読み込み時に初期化
+        window.onload = function() {
+            try {
+                init();
+            } catch(error) {
+                console.error('初期化エラー:', error);
+                alert('エラー: ' + error.message);
+            }
+        };
+    </script>
+</body>
+</html>
